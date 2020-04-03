@@ -160,6 +160,7 @@ class ScriptProcessor(DataProcessor):
         """Creates examples for the training and dev sets."""
         genre_dict = defaultdict(str)
         examples = []
+        acceptable_genres = []
         for i, line in enumerate(lines):
         	if i == 0:
         		# print(line[4:32])
@@ -186,7 +187,9 @@ def convert_examples_to_features(
     pad_on_left=False,
     pad_token=0,
     mask_padding_with_zero=True,
-    model_type = 'gpt2'
+    model_type = 'gpt2',
+    acceptable_genres = None,
+    max_tokens = None
 ) -> List[InputFeatures]:
     """
     Loads a data file into a list of `InputFeatures`
@@ -197,6 +200,7 @@ def convert_examples_to_features(
     features = []
     max_len = 0
     count = 0
+    outer_max_tokens = max_tokens
     for (ex_index, example) in tqdm.tqdm(enumerate(examples), desc="convert examples to features"):
         if ex_index % 10000 == 0:
             logger.info("Writing example %d of %d" % (ex_index, len(examples)))
@@ -204,24 +208,18 @@ def convert_examples_to_features(
         genre_tags = []
         # print(example.genres)
         # print(genre_dict)
+
         for id_a,a in enumerate(example.genres):
         	if int(a) == 1:
         		# print(a)
         		if '<' + genre_dict[int(id_a)] + '>' not in genre_tags:
-        			genre_tags.append('<' + genre_dict[int(id_a)] + '>')
-        # print(genre_tags)
-        # sdfsdf
-        # print(example.script)
-        # for example_id, (script, genres) in enumerate(zip(example.script, example.genres)):
-        # text_a = context
-        # if example.question.find("_") != -1:
-        #     # this is for cloze question
-        #     text_b = example.question.replace("_", ending)
-        # else:
-        #     text_b = example.question + " " + ending
-        # if model_type == 'gpt2':
-        #     text_b += ' [CLS]'
+        			if genre_dict[int(id_a)] in acceptable_genres:
+        				genre_tags.append('<' + genre_dict[int(id_a)] + '>')
+        if len(genre_tags) == 0:
+        	continue
+
         text = example.script
+        # print(example.title)
         inputs = tokenizer.encode_plus(example.script)
         # print(inputs)\
         input_ids, token_type_ids = inputs["input_ids"], inputs["token_type_ids"]
@@ -230,14 +228,31 @@ def convert_examples_to_features(
         	# sdfsdf
         	continue
         # print(input_ids)
-        split_inputs = torch.tensor(input_ids).split(max_length - len(genre_tags))
-        split_token_type_ids = torch.tensor(token_type_ids).split(max_length - len(genre_tags))
+        index = 0
+        overlap = 20
+        split_inputs = []
+        split_token_type_ids = []
+        # print(max_tokens)
+        if not outer_max_tokens:
+        	max_tokens = len(input_ids)
+        max_tokens = min(max_tokens, len(input_ids))
+        # print(max_tokens)
+        # print(len(input_ids))
+        while index < max_tokens:
+        	# print(index, min(index + (max_length - len(genre_tags)) , max_tokens))
+        	split_inputs.append(torch.tensor(input_ids[index: min(index + (max_length - len(genre_tags)) , max_tokens)]))
+        	index += ((max_length - len(genre_tags)) - overlap)
+        index = 0
+        while index < max_tokens:
+        	split_token_type_ids.append(torch.tensor(token_type_ids[index: min(index + (max_length - len(genre_tags)) , max_tokens)]))
+        	index += ((max_length - len(genre_tags)) - overlap)
+
         # print(split_inputs)
-        # for inp in split_inputs:
-        # 	print(torch.tensor(tokenizer.encode(genre_tags)))
-        # 	# print(inp)
-        # 	print(torch.cat((torch.tensor(tokenizer.encode(genre_tags)),inp)))
+
         split_inputs = [torch.cat((torch.tensor(tokenizer.encode(genre_tags)),inp)) for inp in split_inputs]
+        # print(len(split_inputs))
+        # print(split_inputs[0].shape)
+        # sadfsdf
         # print(split_token_type_ids[0])
         # print(split_inputs[0].shape)
         # kzjfhsd
@@ -260,66 +275,9 @@ def convert_examples_to_features(
         	assert len(new_token_type_ids) == max_length
         	choices_features.append((new_input_ids, attention_mask, new_token_type_ids))
         	features.append(InputFeatures(example_id=example.title, choices_features=choices_features))
-        if count == 150:
-        	return features
+        max_tokens = outer_max_tokens 
+        # if count == 500:
+        # 	return features
         count+=1
     return features
-    #     kjsadfkjd
-    #     # print(text_a)
-    #     # print(text_b)
-    #     # sdfsdf
-    #     # max_len = max(len(tokenizer.encode(text_a + text_b)), max_len)
-    #     # sdfsdf
-
-    #     inputs = tokenizer.encode_plus(text_a, text_b, add_special_tokens=True, max_length=max_length,)
-    #     if "num_truncated_tokens" in inputs and inputs["num_truncated_tokens"] > 0:
-    #         logger.info(
-    #             "Attention! you are cropping tokens (swag task is ok). "
-    #             "If you are training ARC and RACE and you are poping question + options,"
-    #             "you need to try to use a bigger max seq length!"
-    #         )
-    #     #loop through split(inputs) for each len - genre split. Add genre + pad if necessary
-    #     input_ids, token_type_ids = inputs["input_ids"], inputs["token_type_ids"]
-    #     # if not input_ids[-1] == tokenizer.cls_token_id:
-    #     #     input_ids[-1] = tokenizer.cls_token_id
-    #     #     print(input_ids)
-    #     #     sdf
-    #     # The mask has 1 for real tokens and 0 for padding tokens. Only real
-    #     # tokens are attended to.
-    #     attention_mask = [1 if mask_padding_with_zero else 0] * len(input_ids)
-
-    #     # Zero-pad up to the sequence length.
-    #     cls_token_location = -1
-    #     padding_length = max_length - len(input_ids)
-    #     if pad_on_left:
-    #         input_ids = ([pad_token] * padding_length) + input_ids
-    #         attention_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + attention_mask
-    #         token_type_ids = ([pad_token_segment_id] * padding_length) + token_type_ids
-    #     else:
-    #         input_ids = input_ids + ([pad_token] * padding_length)
-    #         attention_mask = attention_mask + ([0 if mask_padding_with_zero else 1] * padding_length)
-    #         token_type_ids = token_type_ids + ([pad_token_segment_id] * padding_length)
-    #     # print(input_ids)
-    #     cls_token_location = input_ids.index(tokenizer.cls_token_id) 
-    #     assert len(input_ids) == max_length
-    #     assert len(attention_mask) == max_length
-    #     assert len(token_type_ids) == max_length
-    #     choices_features.append((input_ids, attention_mask, token_type_ids, cls_token_location))
-
-    #     # label = label_map[example.label]
-
-    #     if ex_index < 2:
-    #         logger.info("*** Example ***")
-    #         logger.info("race_id: {}".format(example.example_id))
-    #         for choice_idx, (input_ids, attention_mask, token_type_ids, cls_token_location) in enumerate(choices_features):
-    #             logger.info("choice: {}".format(choice_idx))
-    #             logger.info("input_ids: {}".format(" ".join(map(str, input_ids))))
-    #             logger.info("attention_mask: {}".format(" ".join(map(str, attention_mask))))
-    #             logger.info("token_type_ids: {}".format(" ".join(map(str, token_type_ids))))
-    #             # logger.info("label: {}".format(label))
-
-    #     features.append(InputFeatures(example_id=example.example_id, choices_features=choices_features, label=label,))
-    # # print(max_len)
-    # # sdfsdf
-    # return features
 
