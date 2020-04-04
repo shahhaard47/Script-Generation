@@ -58,7 +58,7 @@ def select_field(features, field):
 def simple_accuracy(preds, labels):
     return (preds == labels).mean()
 
-def load_and_cache_examples(args, tokenizer, evaluate=False, test=False):
+def load_and_cache_examples(args, tokenizer, acceptable_genres, evaluate=False, test=False):
     #Uncomment for distributed training
     # if args.local_rank not in [-1, 0]:
     #     torch.distributed.barrier()  # Make sure only the first process in distributed training process the dataset, and the others will use the cache
@@ -105,7 +105,9 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, test=False):
             tokenizer,
             pad_on_left=bool(args.model_type in ["xlnet"]),  # pad on the left for xlnet
             pad_token_segment_id=4 if args.model_type in ["xlnet"] else 0,
-            model_type = args.model_type
+            model_type = args.model_type, 
+            acceptable_genres = acceptable_genres,
+            max_tokens = args.max_tokens
         )
         # if args.local_rank in [-1, 0]:
         # logger.info("Saving features into cached file %s", cached_features_file)
@@ -261,14 +263,20 @@ if __name__ == '__main__':
 
     parser.add_argument(
         "--max_seq_len",
-        default = 300,
+        default = 250,
         type = int,
         help = "maximum length of the input sequence to the transformer"
+    )
+    parser.add_argument(
+        "--max_tokens",
+        default = None,
+        type = int,
+        help = "maximum tokens to use from each script"
     )
 
     parser.add_argument(
         "--train_batch_size",
-        default = 12,
+        default = 15,
         type = int,
         help = "batch size during training"
     )
@@ -302,11 +310,26 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model_class.from_pretrained(args.model_name_or_path, config = config)
 
-    tokenizer.add_special_tokens({'additional_special_tokens': ['<Comedy>', '<Action>', '<Action.Thriller>', '<Adventure>', '<Animation>', '<Biography>', '<Crime>', '<Drama>', '<Family>', '<Fantasy>', '<Film-Noir>', '<History>', '<Horror>', '<Horror.Mystery>', '<Music>', '<Musical>', '<Romance>', '<Sci-Fi>', '<Short>', '<Sport>', '<Thriller>', '<War>', '<Western>']})
+    # tokenizer.add_special_tokens({'additional_special_tokens': ['<Comedy>', '<Action>', '<Action.Thriller>', '<Adventure>', '<Animation>', '<Biography>', '<Crime>', '<Drama>', '<Family>', '<Fantasy>', '<Film-Noir>', '<History>', '<Horror>', '<Horror.Mystery>', '<Music>', '<Musical>', '<Romance>', '<Sci-Fi>', '<Short>', '<Sport>', '<Thriller>', '<War>', '<Western>']})
+    tokenizer.add_special_tokens({'additional_special_tokens': ['<Comedy>', '<Action>', '<Adventure>', '<Crime>', '<Drama>', '<Fantasy>', '<Horror>', '<Music>', '<Romance>', '<Sci-Fi>', '<Thriller>']})
     model.resize_token_embeddings(len(tokenizer)) 
+    acceptable_genres = ['Comedy', 'Action', 'Adventure', 'Crime', 'Drama', 'Fantasy', 'Horror', 'Music', 'Romance', 'Sci-Fi', 'Thriller']
     model.to(device)
     args.device = device
 
-    train_dataset = load_and_cache_examples(args, tokenizer)
+    train_dataset = load_and_cache_examples(args, tokenizer, acceptable_genres)
     train(args, model, tokenizer, train_dataset)
 
+
+    # if args.do_test:
+    #     checkpoints = [args.output_dir]
+    #     print(f"Evaluate the following checkpoints: {checkpoints}")
+    #     for checkpoint in checkpoints:
+    #         global_step = checkpoint.split("-")[-1] if len(checkpoint.split("-")[-1]) > 1 else ""
+    #         prefix = checkpoint.split("/")[-1] if checkpoint.find("checkpoint") != -1 else ""
+
+    #         model = model_class.from_pretrained(checkpoint)
+    #         model.to(args.device)
+    #         result = evaluate(args, model, tokenizer, prefix=prefix, test = True)
+    #         result = dict((k + "_{}".format(global_step), v) for k, v in result.items())
+    #         results.update(result)
