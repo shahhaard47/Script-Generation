@@ -6,3 +6,6 @@ gpt2-pytorch_model.bin
 *.pkl
 __pycache__
 data/*
+apex
+create_train-test_split.py
+.vscode/settings.json
