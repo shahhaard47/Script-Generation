@@ -293,7 +293,7 @@ if __name__ == '__main__':
         default=1,
         help="Number of updates steps to accumulate before performing a backward/update pass.",
     )
-    parser.add_argument("--learning_rate", type=float, default=3e-3)
+    parser.add_argument("--learning_rate", type=float, default=1e-3)
     parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight deay if we apply some.")
     parser.add_argument("--warmup_steps", default=5000, type=int, help="Linear warmup over warmup_steps.")
     parser.add_argument("--num_train_epochs", type=int, default=5)
