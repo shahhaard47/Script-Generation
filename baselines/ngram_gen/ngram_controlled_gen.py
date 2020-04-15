@@ -33,7 +33,7 @@ except:  # Use a naive sentence tokenizer and toktok.
 from nltk.tokenize.treebank import TreebankWordDetokenizer
 detokenize = TreebankWordDetokenizer().detokenize
 
-# Setting up paths 
+# Setting up paths
 file_loc = os.path.dirname(os.path.abspath(__file__))
 HOME_dir = os.path.dirname(os.path.dirname(file_loc))
 os.chdir(HOME_dir)
@@ -189,18 +189,20 @@ class ScriptGram(object):
         for genre in self.all_genres:
             # fname = '_'.join([self.lm, genre, str(self.n)+'gram']) + ".pkl"
             # fname = os.path.join(MODEL_DIR, fname)
-            fname = self.model_file_name(genre)
-            if not os.path.exists(MODEL_DIR):
-                os.mkdir(MODEL_DIR)
-            with open(fname, 'wb') as fout:
-                pickle.dump(self.models[genre], fout)
-            print("Saved:", fname)
+            self.save_model(genre)
+            # fname = self.model_file_name(genre)
+            # if not os.path.exists(MODEL_DIR):
+            #     os.mkdir(MODEL_DIR)
+            # with open(fname, 'wb') as fout:
+            #     pickle.dump(self.models[genre], fout)
+            # print("Saved:", fname)
 
     def _train_wrapper(self, genre):
         """to be used for parallization"""
         # print("training genre:", genre)
         tic = time()
         train, vocab = self.data_dict[genre]
+        print("Training genre:", genre)
         self.models[genre].fit(train, vocab)
         print(genre, "training time:", time() - tic)
         return (genre, time() - tic)
@@ -219,10 +221,28 @@ class ScriptGram(object):
 
     def _train_sequential(self):
         """regular non-fancy dumb training"""
+        pool = mp.Pool(processes=mp.cpu_count())
         for genre in self.all_genres:
             self._train_wrapper(genre)
+            pool.apply_async(self.save_model, (genre,))
+            print("saving", genre, "async")
+        pool.close()
+        pool.join()
+
+    def save_model(self, genre):
+        fname = self.model_file_name(genre)
+        if not os.path.exists(MODEL_DIR):
+            os.mkdir(MODEL_DIR)
+        with open(fname, 'wb') as fout:
+            pickle.dump(self.models[genre], fout)
+        print("Saved:", fname)
 
     def train_models(self):
+        print("--------- Training Model Stats: -----------")
+        print("n =", self.n)
+        print("lm =", self.lm)
+        print("-------------------------------------------")
+
         # train models MLE for now
         for genre in self.all_genres:
             self.models[genre] = self.LM(self.n)
@@ -239,8 +259,8 @@ class ScriptGram(object):
         self._train_sequential()
 
         # save models to file now
-        print("total training time", time() - tic)
-        self.save_all_models()
+        print("total training + saving time", time() - tic)
+        # self.save_all_models()
 
     def load_data(self):
         """load & preprocess train data"""
@@ -285,7 +305,7 @@ class ScriptGram(object):
         pool = mp.Pool(processes=mp.cpu_count())
         for i, genre in enumerate(self.all_genres):
             print("processing :", genre)
-            pool.apply_async(self._parallel_load_genre_to_datadict, (genre), callback=on_result)
+            pool.apply_async(self._parallel_load_genre_to_datadict, (genre,), callback=on_result)
         pool.close()
         pool.join()
 
@@ -321,24 +341,11 @@ class ScriptGram(object):
         return tokens
 
 
-# n = 5
-# sg = ScriptGram(n=n)
-# sg.load_data()
-# sg.train_models()
-# sg.generate_stylized_text(text_seed="The man went to the park", num_words=400)
-
-# sg.n = 3
-# sg.train_models()
-# sg.generate_stylized_text(text_seed="The man went to the park", num_words=400)
-
-# sg.n = 4
-# sg.train_models()
-# sg.generate_stylized_text(text_seed="The man went to the park", num_words=400)
 
 import sys
 
 if __name__ == "__main__":
-    n = sys.argv[1]
+    n = int(sys.argv[1])
     """
     ltg = load_data --> train_models --> generate_text
     lg = load_models --> generate_text

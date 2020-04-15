@@ -13,3 +13,4 @@ baselines/ngram_gen/language-never-random.txt
 baselines/ngram_gen/n-gram-language-model-with-nltk.ipynb
 baselines/ngram_gen/.ipynb_checkpoints/*
 ngram_generations/*
+.DS_Store
