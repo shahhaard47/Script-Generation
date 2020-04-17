@@ -105,8 +105,10 @@ class ScriptGram(object):
         """loads models from MODEL_DIR"""
         # get genre names
         gen_stats = os.path.join(DATA_DIR, 'genre_stats.csv')
-        gen = pd.read_csv(gen_stats)
+        gen = pd.read_csv(gen_stats, header=None)
+        # print(gen)
         self.all_genres = gen.iloc[:, 0].tolist()
+        # print(self.all_genres)
         # get model files
         for genre in self.all_genres:
             modfile = self.model_file_name(genre)
@@ -162,7 +164,7 @@ class ScriptGram(object):
             outframe.to_csv(outFile, mode='w', index=False)
 
     def generations_file_name(self, lm=None, n=None):
-        """all generations will be in one csv"""
+        """All generations will be in one csv."""
         if lm is None: lm = self.lm
         if n is None: n = self.n
         f = '_'.join([lm, str(n) + 'gram']) + ".csv"
@@ -170,15 +172,18 @@ class ScriptGram(object):
         return os.path.join(GEN_DIR, f)
 
     def model_file_name(self, genre, lm=None, n=None):
-        """Get model name as described by params
+        """Get model name as described by params.
+        
         Params
         --------
         genre : str
         lm : str Language Model name (i.e. 'mle') look at __init__
         n : int (probably self.n)
+        
         returns
         --------
         fullpath file: str - MODEL_DIR/lm_genre_(n)gram.pkl
+
         """
         if lm is None: lm = self.lm
         if n is None: n = self.n
@@ -263,7 +268,7 @@ class ScriptGram(object):
         # self.save_all_models()
 
     def load_data(self):
-        """load & preprocess train data"""
+        """Load & preprocess train data."""
         self.df = pd.read_csv(SCRIPTS_ALL)
         self.all_genres = self.df.columns[4:]
         self.data_dict = {}
