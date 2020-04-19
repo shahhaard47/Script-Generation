@@ -4,3 +4,6 @@ torchvision
 tqdm
 transformers
 pandas
+pathlib
+syntok
+fast-bert
