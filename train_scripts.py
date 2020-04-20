@@ -5,7 +5,10 @@ import os
 import sys
 import torch
 import random
+# from StyleClassifier_BERT import *
 import argparse
+import torch.nn.functional as F
+from helpers.sample import sample_sequence
 
 
 from transformers import GPT2DoubleHeadsModel,GPT2LMHeadModel, GPT2Model
@@ -136,6 +139,7 @@ def load_and_cache_examples(args, tokenizer, acceptable_genres, evaluate=False, 
 def train(args, model, tokenizer, train_dataset):
 	train_sampler = RandomSampler(train_dataset)
 	train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
+	bert_path = "./models/model_out_bert_cased"
 
 	if args.max_steps > 0:
 	    t_total = args.max_steps
@@ -168,15 +172,20 @@ def train(args, model, tokenizer, train_dataset):
 	print(f"  Total optimization steps = {t_total}", )
 
 	global_step = 0
-	tr_loss, logging_loss = 0.0, 0.0
+	tr_loss, b_loss, logging_loss, b_logging_loss = 0.0, 0.0, 0.0, 0.0
 	best_dev_acc = 0.0
 	best_steps = 0
+	topk = 10
 	model.zero_grad()
+	genres = ['<Comedy>', '<Action>', '<Adventure>', '<Crime>', '<Drama>', '<Fantasy>', '<Horror>', '<Romance>', '<Sci-Fi>', '<Thriller>']
 	train_iterator = trange(int(args.num_train_epochs), desc="Epoch")
+	# context_tokens = tokenizer.encode(args.genres)
+
 
 	# model_path = './models'
 	if not os.path.exists(args.output_dir):
 	    os.mkdir(args.output_dir)
+	bert_loss = 0
 
 	for epoch in train_iterator:
 		epoch_iterator = tqdm(train_dataloader, desc = "Iteration")
@@ -191,21 +200,55 @@ def train(args, model, tokenizer, train_dataset):
 				"labels": batch[0]
 				}
 			outputs = model(**inputs)
+			# print(outputs[1].shape)
+			logits = F.softmax(outputs[1], dim=-1)
+			predictions = torch.topk(logits, k=1, dim=-1)[1].squeeze()
+			# print(predictions.shape)
 			loss = outputs[0]
-			# print(loss)
+			
+			# text = tokenizer.decode(out[i])
+
+			# kdjfdhg
+			# bert_loss = 0
+			# for i in range(predictions.shape[0]):
+			# 	p = random.uniform(0, 1)
+			# 	if p > 0.1:
+			# 		continue
+			# 	out = predictions[i, :].tolist()
+			# 	orig = batch[0][i, :].tolist()
+			# 	o_genres = []
+			# 	for j in range(len(batch[0][i, :])):
+			# 		token = tokenizer.decode([batch[0][i,j]])
+			# 		if token in genres:
+			# 			o_genres.append(token.replace("<","").replace(">",""))
+			# 	pred = classify_bert(tokenizer.decode(out), bert_path)
+			# 	inter_loss = 0
+			# 	c = 0
+			# 	for l in o_genres:
+			# 		inter_loss += (1 - pred[l])
+			# 		c += 1
+			# 	bert_loss += float(inter_loss) / c
+			# bert_loss = float(bert_loss) / predictions.shape[0]
+			# print(bert_loss)
+			# ksldjf
+
 			if args.gradient_accumulation_steps > 1:
 				loss = loss / args.gradient_accumulation_steps
+			loss += bert_loss
 			loss.backward()
 			torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 			tr_loss += loss.item()
+			b_loss += bert_loss
 			if (step + 1) % args.gradient_accumulation_steps == 0:
 				optimizer.step()
 				scheduler.step()  # Update learning rate schedule
 				model.zero_grad()
 				global_step += 1
 				if args.logging_steps > 0 and global_step%args.logging_steps == 0:
+                    # print(f"\nAverage loss: {(tr_loss - logging_loss) / args.logging_steps}, BERT loss: {(b_loss - b_logging_loss)/ args.logging_steps} at global step: {global_step}")
 					print(f"\nAverage loss: {(tr_loss - logging_loss) / args.logging_steps} at global step: {global_step}")
 					logging_loss = tr_loss
+					# b_logging_loss = b_loss
 				if args.save_steps > 0 and global_step % args.save_steps == 0:
 					# torch.save(model.state_dict(), os.path.join(model_path, f"{args.model_type}_funnies_{epoch}.pt"))
 					output_dir = os.path.join(args.output_dir, "checkpoint-{}".format(global_step))
@@ -237,7 +280,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--output_dir",
-        default='./models',
+        default='./models_with_BERT',
         type=str,
         help="The input data dir. Should contain the .tsv files (or other data files) for the task.",
     )
@@ -263,7 +306,7 @@ if __name__ == '__main__':
 
     parser.add_argument(
         "--max_seq_len",
-        default = 250,
+        default = 200,
         type = int,
         help = "maximum length of the input sequence to the transformer"
     )
@@ -313,6 +356,7 @@ if __name__ == '__main__':
     # tokenizer.add_special_tokens({'additional_special_tokens': ['<Comedy>', '<Action>', '<Action.Thriller>', '<Adventure>', '<Animation>', '<Biography>', '<Crime>', '<Drama>', '<Family>', '<Fantasy>', '<Film-Noir>', '<History>', '<Horror>', '<Horror.Mystery>', '<Music>', '<Musical>', '<Romance>', '<Sci-Fi>', '<Short>', '<Sport>', '<Thriller>', '<War>', '<Western>']})
     tokenizer.add_special_tokens({'additional_special_tokens': ['<Comedy>', '<Action>', '<Adventure>', '<Crime>', '<Drama>', '<Fantasy>', '<Horror>', '<Music>', '<Romance>', '<Sci-Fi>', '<Thriller>']})
     model.resize_token_embeddings(len(tokenizer)) 
+    # acceptable_genres = ['Comedy', 'Action', 'Adventure', 'Crime', 'Drama', 'Fantasy', 'Horror', 'Music', 'Romance', 'Sci-Fi', 'Thriller']
     acceptable_genres = ['Comedy', 'Action', 'Adventure', 'Crime', 'Drama', 'Fantasy', 'Horror', 'Music', 'Romance', 'Sci-Fi', 'Thriller']
     model.to(device)
     args.device = device

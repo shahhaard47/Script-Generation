@@ -21,12 +21,16 @@ def top_k_logits(logits, k):
     # ksldfsd
     return torch.where(logits < min_values, torch.ones_like(logits, dtype=logits.dtype) * -1e10, logits), indices
 
-def sample_sequence(model, length, start_token=None, batch_size=None, context=None, temperature=1, top_k=0, device='cuda', sample=True, vocab = None, end_text = False):
+def sample_sequence(model, length, start_token=None, batch_size=None, context=None, temperature=1, top_k=0, device='cuda', sample=True, vocab = None, end_text = False, disc_flag = False):
     # print(context)
     # print(model)
     if start_token is None:
         assert context is not None, 'Specify exactly one of start_token and context!'
-        context = torch.tensor(context, device=device, dtype=torch.long).unsqueeze(0).repeat(batch_size, 1)
+        # print(context.shape)
+        if disc_flag:
+            context = torch.tensor(context, device=device, dtype=torch.long).unsqueeze(0)
+        else:    
+            context = torch.tensor(context, device=device, dtype=torch.long).unsqueeze(0).repeat(batch_size, 1)
     else:
         assert context is None, 'Specify exactly one of start_token and context!'
         context = torch.full((batch_size, 1), start_token, device=device, dtype=torch.long)
@@ -38,7 +42,12 @@ def sample_sequence(model, length, start_token=None, batch_size=None, context=No
     with torch.no_grad():
         for i in trange(length):
             logits, past = model(prev, past=past)
-            logits = logits[:, -1, :] / temperature
+            # print(logits.shape)
+            if disc_flag:
+                logits = logits / temperature
+            else:
+                logits = logits[:, -1, :] / temperature
+            # print(logits.shape)
             logits, indices = top_k_logits(logits, k=top_k)
             decoded_indices = []
             # for i in range(len(indices[0])):

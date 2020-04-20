@@ -69,6 +69,7 @@ def generate(args, model, tokenizer):
             context=context_tokens  if not  args.unconditional else None,
             start_token=tokenizer.encoder['<|endoftext|>'] if args.unconditional else None,
             batch_size=args.batch_size,
+            sample = False,
             temperature=args.temperature, top_k=args.top_k, device=device, vocab = tokenizer.decoder
         )
         out = out[:, len(context_tokens):].tolist()

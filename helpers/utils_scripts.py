@@ -200,7 +200,9 @@ def convert_examples_to_features(
     features = []
     max_len = 0
     count = 0
+    single_genre_count = defaultdict(int)
     outer_max_tokens = max_tokens
+    movie_count = 0
     for (ex_index, example) in tqdm.tqdm(enumerate(examples), desc="convert examples to features"):
         if ex_index % 10000 == 0:
             logger.info("Writing example %d of %d" % (ex_index, len(examples)))
@@ -213,10 +215,20 @@ def convert_examples_to_features(
         	if int(a) == 1:
         		# print(a)
         		if '<' + genre_dict[int(id_a)] + '>' not in genre_tags:
+        			print(genre_dict[(int(id_a))])
         			if genre_dict[int(id_a)] in acceptable_genres:
         				genre_tags.append('<' + genre_dict[int(id_a)] + '>')
+        			# else:
+        			# 	genre_tags = []
+        			# 	break
+        # print(genre_tags)
+        # jkljsdlfjs
         if len(genre_tags) == 0:
+        	# print("")
         	continue
+        # movie_count += 1
+        if len(genre_tags) == 1:
+        	single_genre_count[genre_tags[0]] += 1
 
         text = example.script
         # print(example.title)
@@ -279,5 +291,9 @@ def convert_examples_to_features(
         # if count == 500:
         # 	return features
         count+=1
+    # print(single_genre_count)
+    # print(sum(list(single_genre_count.values())))
+    # print(movie_count)
+    # sdfsdf
     return features
 

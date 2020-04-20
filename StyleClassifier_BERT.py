@@ -128,12 +128,14 @@ def classify_bert(text, model_path):
     list: if type(text) == list or numpy array
 
     """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     predictor = BertClassificationPredictor(
                     model_path=model_path,
                     label_path=model_path, # location for labels.csv file
                     multi_label=True,
                     model_type='bert',
                     do_lower_case=False)
+    # predictor.to(device)
 
     if isinstance(text, str):
         # Single prediction
@@ -150,5 +152,5 @@ def classify_bert(text, model_path):
         # multiple_predictions = predictor.predict_batch(texts)
     else:
         raise ValueError("Unexpected type for input argument `text`")
-    return pred
+    return dict(pred)
 
