@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import pickle
 from time import time
 
+# FOR GENERATING TF-IDF embeddings using ngram counts
 def get_tfidf_score(models, all_genres, word):
     """Get TF-IDF score.
     
@@ -110,6 +111,8 @@ def create_tfidf_embeddings():
             df.to_csv(file_name, mode='a', header=False, index=False)
             print("added vocabs from:", genre, "; count", count)
     
+
+# VISUALIZATION CODE t-SNE
 
 def extractFromDF(df, cols=None, thresh=0):
     print("Cleaning up data")
@@ -248,12 +251,37 @@ def create_2_tSNE(df, cols=None, thresh=0, pickleFileName="saved_tsne_values.pic
     # plt.clim(-0.5, 9.5)
     plt.show()
 
-def get_GPT2_embeddings():
+from transformers import GPT2Config, GPT2LMHeadModel, GPT2Tokenizer
+import torch
+from pathlib import Path
+
+# file_loc = os.path.dirname(os.path.abspath(__file__))
+# HOME_dir = os.path.dirname(file_loc)
+# os.chdir(HOME_dir)
+
+def get_gpt_tokenizer():
+
+    checkpoint = os.path.join(HOME_dir, "models/checkpoint-600000")
+    # config = GPT2Config.from_pretrained(checkpoint)
+    tokenizer = GPT2Tokenizer.from_pretrained(checkpoint)
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = GPT2LMHeadModel.from_pretrained(checkpoint)
+    tokenizer.add_special_tokens({'additional_special_tokens': ['<Comedy>', '<Action>', '<Adventure>', '<Crime>', '<Drama>', '<Fantasy>', '<Horror>', '<Music>', '<Romance>', '<Sci-Fi>', '<Thriller>']})
+    model.resize_token_embeddings(len(tokenizer))
+
+    return model, tokenizer
+
+def get_GPT2_embeddings(df):
     # 1. Get vocab
     file_name = os.path.join(GEN_DIR, "tfidf_all_genres1.csv")
     df = pd.read_csv(file_name, index_col=False)
 
     # 2. Use GPT tokenizer to encode 
+    model, tokenizer = get_gpt_tokenizer()
+    print(tokenizer)
+    print(tokenizer.encode("hello"))
+    print(model)
+
 
     # 3. Get embeddings using the ints
 
@@ -268,10 +296,15 @@ if __name__ == "__main__":
     file_name = os.path.join(GEN_DIR, "tfidf_all_genres1.csv")
     df = pd.read_csv(file_name, index_col=False)
 
+    # Visualizing GPT embeddings
+    get_GPT2_embeddings(df)
+
+    exit()
+    # Visualizing tfidf embeddings
+
     # create_1_tSNE(df, cols=['Action', 'Drama', 'Comedy'], thresh=0.5,pickleFileName="tsne_actionDramaComedy_t0.5.pickle", cont_saved=True)
     # pickleFileName = os.path.join(file_loc, "tsne_all_t0.pickle")
     # create_1_tSNE(df, cols=None, thresh=0.5, pickleFileName=pickleFileName, cont_saved=True)
-
 
     # cols = ['Adventure', 'Romance', 'Horror', 'Fantasy']
     cols = ['Biography', 'Film-Noir', 'History', 'Music', 'Short', 'Sport']
