@@ -5,7 +5,7 @@ import os
 import sys
 import torch
 import random
-# from StyleClassifier_BERT import *
+from StyleClassifier_BERT import *
 import argparse
 import torch.nn.functional as F
 from helpers.sample import sample_sequence
@@ -211,26 +211,26 @@ def train(args, model, tokenizer, train_dataset):
 			# text = tokenizer.decode(out[i])
 
 			# kdjfdhg
-			# bert_loss = 0
-			# for i in range(predictions.shape[0]):
-			# 	p = random.uniform(0, 1)
-			# 	if p > 0.1:
-			# 		continue
-			# 	out = predictions[i, :].tolist()
-			# 	orig = batch[0][i, :].tolist()
-			# 	o_genres = []
-			# 	for j in range(len(batch[0][i, :])):
-			# 		token = tokenizer.decode([batch[0][i,j]])
-			# 		if token in genres:
-			# 			o_genres.append(token.replace("<","").replace(">",""))
-			# 	pred = classify_bert(tokenizer.decode(out), bert_path)
-			# 	inter_loss = 0
-			# 	c = 0
-			# 	for l in o_genres:
-			# 		inter_loss += (1 - pred[l])
-			# 		c += 1
-			# 	bert_loss += float(inter_loss) / c
-			# bert_loss = float(bert_loss) / predictions.shape[0]
+			bert_loss = 0
+			for i in range(predictions.shape[0]):
+				p = random.uniform(0, 1)
+				if p > 0.1:
+					continue
+				out = predictions[i, :].tolist()
+				orig = batch[0][i, :].tolist()
+				o_genres = []
+				for j in range(len(batch[0][i, :])):
+					token = tokenizer.decode([batch[0][i,j]])
+					if token in genres:
+						o_genres.append(token.replace("<","").replace(">",""))
+				pred = classify_bert(tokenizer.decode(out), bert_path)
+				inter_loss = 0
+				c = 0
+				for l in o_genres:
+					inter_loss += (1 - pred[l])
+					c += 1
+				bert_loss += float(inter_loss) / c
+			bert_loss = float(bert_loss) / predictions.shape[0]
 			# print(bert_loss)
 			# ksldjf
 
@@ -247,10 +247,10 @@ def train(args, model, tokenizer, train_dataset):
 				model.zero_grad()
 				global_step += 1
 				if args.logging_steps > 0 and global_step%args.logging_steps == 0:
-                    # print(f"\nAverage loss: {(tr_loss - logging_loss) / args.logging_steps}, BERT loss: {(b_loss - b_logging_loss)/ args.logging_steps} at global step: {global_step}")
-					print(f"\nAverage loss: {(tr_loss - logging_loss) / args.logging_steps} at global step: {global_step}")
+                    print(f"\nAverage loss: {(tr_loss - logging_loss) / args.logging_steps}, BERT loss: {(b_loss - b_logging_loss)/ args.logging_steps} at global step: {global_step}")
+					# print(f"\nAverage loss: {(tr_loss - logging_loss) / args.logging_steps} at global step: {global_step}")
 					logging_loss = tr_loss
-					# b_logging_loss = b_loss
+					b_logging_loss = b_loss
 				if args.save_steps > 0 and global_step % args.save_steps == 0:
 					# torch.save(model.state_dict(), os.path.join(model_path, f"{args.model_type}_funnies_{epoch}.pt"))
 					output_dir = os.path.join(args.output_dir, "checkpoint-{}".format(global_step))

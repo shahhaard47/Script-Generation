@@ -241,7 +241,7 @@ def convert_examples_to_features(
         	continue
         # print(input_ids)
         index = 0
-        overlap = 20
+        overlap = 25
         split_inputs = []
         split_token_type_ids = []
         # print(max_tokens)
