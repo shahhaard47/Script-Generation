@@ -140,6 +140,7 @@ def classify_bert(text, model_path):
     if isinstance(text, str):
         # Single prediction
         pred = predictor.predict(text)
+        pred = dict(pred)
         # single_prediction = predictor.predict("just get me result for this text")
     elif isinstance(text, list) or isinstance(text, np.ndarray):
         pred = predictor.predict_batch(text)
@@ -148,9 +149,11 @@ def classify_bert(text, model_path):
         #     "this is the first text",
         #     "this is the second text"
         #     ]
+        for i in range(len(pred)):
+            pred[i] = dict(pred[i])
 
         # multiple_predictions = predictor.predict_batch(texts)
     else:
         raise ValueError("Unexpected type for input argument `text`")
-    return dict(pred)
+    return pred
 
