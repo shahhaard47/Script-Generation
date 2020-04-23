@@ -69,7 +69,7 @@ def tsne_plot_similar_words(title, labels, embedding_clusters, word_clusters, a,
 def generate_tSNE(args, model, tokenizer):
     embeddings = model.transformer.wte.weight
     w2v = Word2Vec(corpus)
-    keys = ['<Comedy>', 'joke', '<Action>', '<Adventure>', '<Crime>', '<Drama>', '<Fantasy>', '<Horror>', '<Music>', '<Romance>', '<Sci-Fi>', '<Thriller>']
+    keys = ['<Comedy>', '<Action>', '<Adventure>', '<Crime>', '<Drama>', '<Fantasy>', '<Horror>', '<Music>', '<Romance>', '<Sci-Fi>', '<Thriller>']
     embedding_clusters = []
     word_clusters = []
     for word in keys:
@@ -85,6 +85,7 @@ def generate_tSNE(args, model, tokenizer):
         word_clusters.append(words)
     embedding_clusters = np.array(embedding_clusters)
     n, m, k = embedding_clusters.shape
+    print(embeddings_clusters.shape)
     tsne_model_en_2d = TSNE(perplexity=5, n_components=2, init='pca', n_iter=1000, random_state=2)
     embeddings_en_2d = np.array(tsne_model_en_2d.fit_transform(embedding_clusters.reshape(n * m, k))).reshape(n, m, 2)
 
