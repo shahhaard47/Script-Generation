@@ -130,6 +130,7 @@ class ScriptGram(object):
 
     def generate_stylized_text(self, genre=None, outFile=None, text_seed=None, num_words=1, random_seed=None):
         """Generate controlled text using trained/saved models
+        You can call this repeateadly with same outFile and different text_seed (to add generation to the same .csv file)
         Params
         -------
         genre : (str, List, None) which genre to generate for
@@ -140,6 +141,11 @@ class ScriptGram(object):
         text_seed :
         num_words : number of words to generate
         random_seed : keep generations consistent (debug purposes)
+
+        Returns
+        --------
+        Nothing
+        Saves generated texts to `outFile` or to <lm>_<n>_gram.csv (if `outFile` is None)
         """
         gen_lst = []
         if genre is None:

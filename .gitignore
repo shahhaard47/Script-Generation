@@ -14,3 +14,8 @@ baselines/ngram_gen/n-gram-language-model-with-nltk.ipynb
 baselines/ngram_gen/.ipynb_checkpoints/*
 ngram_generations/*
 .DS_Store
+word2vec.model.vectors.npy
+word2vec.model
+baselines/ngram_gen/genre_vocab_dict.pickle
+baselines/ngram_gen/run_downloader_api.ipynb
+src/pip-delete-this-directory.txt

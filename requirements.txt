@@ -22,7 +22,8 @@ fastprogress==0.2.3
 filelock==3.0.12
 gensim==3.8.2
 grpcio==1.27.2
-highway-env==1.0.dev0
+# highway-env==1.0.dev0
+# highway-env
 idna==2.9
 importlib-metadata==1.5.0
 ipykernel==5.1.4
@@ -44,9 +45,12 @@ Markdown==3.2.1
 MarkupSafe==1.1.1
 matplotlib==3.2.1
 mistune==0.8.4
-mkl-fft==1.0.15
-mkl-random==1.1.0
-mkl-service==2.3.0
+# mkl-fft==1.0.15
+# mkl-fft
+# mkl-random==1.1.0
+# mkl-random
+# mkl-service==2.3.0
+# mkl-service
 murmurhash==1.0.2
 nbconvert==5.6.1
 nbformat==5.0.4
@@ -108,8 +112,8 @@ torchvision==0.5.0
 tornado==6.0.4
 tqdm==4.43.0
 traitlets==4.3.3
--e git+https://github.gatech.edu/asilva9/transformed_bias.git@ad97824d0bf5f5f81dd20f2ce42610a0dd02f167#egg=transformed_bias
-transformers==2.5.1
+# -e git+https://github.gatech.edu/asilva9/transformed_bias.git@ad97824d0bf5f5f81dd20f2ce42610a0dd02f167#egg=transformed_bias
+transformers==2.5.1 # installed newest
 urllib3==1.25.8
 wasabi==0.6.0
 wcwidth==0.1.8

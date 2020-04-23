@@ -131,7 +131,7 @@ def extractFromDF(df, cols=None, thresh=0):
     normalized_df.at[:, 1:] = df.iloc[:, 1:].div(sum_df, axis=0)
     # print(df)
     # print(normalized_df)
-    # threshold
+    # threshold : this is stupid for a normalized row! Just realized (4/22)
     tmask = normalized_df.iloc[:, 1:].sum(axis=1) > thresh
     normalized_df = normalized_df[tmask]
     print("Done", time() - tic)
@@ -143,6 +143,30 @@ def extractFromDF(df, cols=None, thresh=0):
     tokens = normalized_df.iloc[:, 1:].values.tolist()
     # print("tokens", tokens.shape)
     return (labels, tokens)
+
+def extractEmbeddings(df, tokenizer, model, thresh=0):
+    """Reuse extractFromDF to threshold and get labels; then get embeddings from GPT2 model."""
+    embeddings = model.transformer.wte.weight
+    words, _ = extractFromDF(df)
+    new_words = []
+    embeds = []
+    for word in tqdm(words):
+        try:
+            tmp = torch.mean(embeddings[tokenizer.encode(word), :],0).unsqueeze(0).data.cpu().tolist()[0]
+        except:
+            # print("word", word)
+            pass
+        new_words.append(word)
+        embeds.append(tmp)
+        assert len(tmp) == 768
+    cols = df.columns.values[1:]
+    gembeds = []
+    genres = []
+    for c in tqdm(cols):
+        tmp = torch.mean(embeddings[tokenizer.encode(c), :], 0).unsqueeze(0).data.cpu().tolist()[0]
+        genres.append(c)
+        gembeds.append(tmp)
+    return new_words, embeds, genres, gembeds
 
 def getColors(df, cols=None, thresh=0):
     labels, tokens = extractFromDF(df, cols, thresh)
@@ -271,35 +295,140 @@ def get_gpt_tokenizer():
 
     return model, tokenizer
 
-def get_GPT2_embeddings(df):
+def tSNE_train_GPT(tokens, pickleFileName="gpt_embedings_tsne.pickle",
+                    cont_saved=False):
+    """Similar to fit_tsne_mode but for tokens.
+    tokens : list (list(int, int, ...))
+
+    Returns
+    list of (x, y) values to plot 
+    """
+    from sklearn.manifold import TSNE
+    tsne_model = TSNE(perplexity=5, n_components=2,
+                        init='pca', n_iter=2500, random_state=23, 
+                        n_jobs=16, n_iter_without_progress=50)
+
+    if cont_saved:
+        print('loading saved tsne values from', pickleFileName)
+        tic = time()
+        with open(pickleFileName, 'rb') as f:
+            new_values = pickle.load(f)
+        print("Done", time() - tic)
+    else:
+        print('fitting tsne model')
+        tic = time()
+        new_values = tsne_model.fit_transform(tokens)
+        print("fitted values", new_values.shape)
+        print("Done", time() - tic)
+        print('saving tsne values to', pickleFileName)
+        # return new_values
+        tic = time()
+        with open(pickleFileName, 'wb') as f:
+            pickle.dump(new_values, f)
+        print("Done", time() - tic)
+
+    return new_values
+
+
+def visualizeGPT2Embeddings(df, tsne_fname="gpt_embedings_tsne.pickle", cont_saved=False, vis_fname="gpt_tSNE_plot.png"):
     # 1. Get vocab
     file_name = os.path.join(GEN_DIR, "tfidf_all_genres1.csv")
     df = pd.read_csv(file_name, index_col=False)
 
     # 2. Use GPT tokenizer to encode 
     model, tokenizer = get_gpt_tokenizer()
-    print(tokenizer)
-    print(tokenizer.encode("hello"))
-    print(model)
-
 
     # 3. Get embeddings using the ints
+    words, embeds, genres, gembeds = extractEmbeddings(df, tokenizer, model)
 
-    # 4. plot them in similar ways (to tfidf)
+    # 4. Train tSNE model
+    numcols = len(genres)
+    new_values = tSNE_train_GPT(embeds + gembeds)
+    word_vals = new_values[:-numcols]
+    genre_vals = new_values[-numcols:]
+
+    # 5. plot them in similar ways (to tfidf)
             # maybe use tf-idf colorings on embeddings
+    # get colors 
+    colors, cdict = getColors(df, cols=cols, thresh=thresh)
+    colorNames = [cdict[c] for c in range(len(cdict))]
 
-    pass
+    x = []
+    y = []
+    print("Plotting")
+    print()
+    tic = time()
+    for value in tqdm(word_vals):
+        x.append(value[0])
+        y.append(value[1])
+
+    plt.figure(figsize=(16, 16))
+
+    # scatter = plt.scatter(x, y, c=colors, cmap=plt.cm.get_cmap("jet", len(colorNames)), marker='.')
+    plt.scatter(x, y, c=colors, cmap=plt.cm.get_cmap("jet", len(colorNames)), marker='.')
+    try: 
+        print("annotating genre lables")
+        for i in tqdm(range(len(genre_vals))):
+                # plt.scatter(x[i], y[i])
+                plt.scatter(genre_vals[i][0], genre_vals[i][1], c=colors[i], cmap=plt.cm.get_cmap("jet", len(colorNames)), marker='x')
+                plt.annotate(genres[i],
+                            xy=(x[i], y[i]),
+                            xytext=(5, 2),
+                            textcoords='offset points',
+                            ha='right',
+                            va='bottom')
+    except :
+        print("couldn't work labeling this")
+    bar = plt.colorbar(ticks=range(len(colorNames)))
+    bar.set_ticklabels(colorNames)
+    plt.title("tSNE plot for GPT embeddings (colored using tfidf argmax)")
+    plt.grid(True)
+    if vis_fname:
+        plt.savefig(vis_fname, format="png", dpi=150, bbox_inches='tight')
+    print("Done", time() - tic)
+    plt.show()   
+
+def scriptsVocabByGenre(tfidf_file=None):
+    """Get dictionary of words in genre (using tfidf vectors)."""
+    if tfidf_file is None:
+        file_name = os.path.join(GEN_DIR, "tfidf_all_genres1.csv")
+    else:
+        file_name = tfidf_file
+    df = pd.read_csv(file_name, index_col = False)
+
+    labels, tokens = extractFromDF(df)
+    labels = np.array(labels)
+    tokens = np.array(tokens)
+    colors = np.argmax(tokens, axis=1)
+    # print(labels[:10])
+    # print(colors[:10])
+    cols = df.columns.values[1:]
+    sdict = {}
+    for i, genre in enumerate(cols):
+        sdict[genre] = labels[colors==i]
+        print(genre, len(sdict[genre]))
+        print(sdict[genre][:5])
+
+    # save to pickle file
+    fname = os.path.join(file_loc, "genre_vocab_dict.pickle")
+    with open(fname, "wb") as f:
+        pickle.dump(sdict, f)
+    print("Saved genre_vocab dict to file", fname)
+
+    return sdict
 
 if __name__ == "__main__":
+    visualizeGPT2Embeddings(df)
+
+    # scriptsVocabByGenre()
+
+
     # create_tfidf_embeddings()
-    print("reading csv")
-    file_name = os.path.join(GEN_DIR, "tfidf_all_genres1.csv")
-    df = pd.read_csv(file_name, index_col=False)
+    # print("reading csv")
+    # file_name = os.path.join(GEN_DIR, "tfidf_all_genres1.csv")
+    # df = pd.read_csv(file_name, index_col=False)
 
     # Visualizing GPT embeddings
-    get_GPT2_embeddings(df)
-
-    exit()
     # Visualizing tfidf embeddings
 
     # create_1_tSNE(df, cols=['Action', 'Drama', 'Comedy'], thresh=0.5,pickleFileName="tsne_actionDramaComedy_t0.5.pickle", cont_saved=True)
@@ -307,10 +436,10 @@ if __name__ == "__main__":
     # create_1_tSNE(df, cols=None, thresh=0.5, pickleFileName=pickleFileName, cont_saved=True)
 
     # cols = ['Adventure', 'Romance', 'Horror', 'Fantasy']
-    cols = ['Biography', 'Film-Noir', 'History', 'Music', 'Short', 'Sport']
-    nfile = 'tsne_' + ''.join(cols) + '.pickle'
-    pickleFileName = os.path.join(file_loc, nfile) # all > 300 movies
-    create_1_tSNE(df, cols=cols, thresh=0, pickleFileName=pickleFileName, cont_saved=True)
+    # cols = ['Biography', 'Film-Noir', 'History', 'Music', 'Short', 'Sport']
+    # nfile = 'tsne_' + ''.join(cols) + '.pickle'
+    # pickleFileName = os.path.join(file_loc, nfile) # all > 300 movies
+    # create_1_tSNE(df, cols=cols, thresh=0, pickleFileName=pickleFileName, cont_saved=True)
 
 """
 Action	    308
