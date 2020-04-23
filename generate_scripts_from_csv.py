@@ -29,6 +29,8 @@ from transformers import (
     get_linear_schedule_with_warmup,
 )
 
+from baselines.ngram_gen.ngram_controlled_gen import ScriptGram
+
 #Use the right models for language modellnig here 
 MODEL_CLASSES = {
     "bert": (BertConfig, BertForMaskedLM, BertTokenizer),
@@ -41,7 +43,7 @@ ALL_MODELS = sum(
     (tuple(conf.pretrained_config_archive_map.keys()) for conf in (BertConfig, XLNetConfig, RobertaConfig, GPT2Config)), ()
 )
 
-def generate(args, model, text, genres, tokenizer):
+def generate(args, model, text, genres, tokenizer, gen2, gen3):
 
     if args.batch_size == -1:
         args.batch_size = 1
@@ -84,7 +86,7 @@ def generate(args, model, text, genres, tokenizer):
             # print(output_text)
         with open('./data/output.csv',"a") as out:
             csv_out = csv.writer(out)
-            csv_out.writerow((genres, text, output_text))
+            csv_out.writerow((genres, text, output_text, gen2, gen3))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -143,14 +145,15 @@ if __name__ == '__main__':
                 inputs.append(row[0])
     # print(inputs)
     # klsjfsd
-    gen_genres = ['<Comedy>', '<Action>', '<Horror>', '<Sci-Fi>', '<Fantasy>', '<Romance>']
+    gen_genres = ['<Comedy>', '<Action>', '<Adventure>', '<Crime>', '<Drama>',
+                  '<Fantasy>', '<Horror>', '<Music>', '<Romance>', '<Sci-Fi>', '<Thriller>']
     checkpoints = [args.checkpoint]
     print(f"Generating data for the following checkpoints: {checkpoints}")
 
 
     with open('./data/output.csv', "w") as out:
         csv_out = csv.writer(out)
-        csv_out.writerow(('Genre', 'Seed Text', 'Generated Script'))
+        csv_out.writerow(('Genre', 'Seed_Text', 'Generations_GPT2', '2gram_gen', '3gram_gen'))
     
 
 
@@ -160,9 +163,21 @@ if __name__ == '__main__':
         model = model_class.from_pretrained(checkpoint)
         
         model.to(args.device)
+
+        two = ScriptGram(n=2)
+        two.load_models()
+        three = ScriptGram(n=3)
+        three.load_models()
+
         for text in inputs:
+            print("Seed text:", text)
+            print("Generating text with bigrams")
+            two_gen = two.generate_stylized_text(text_seed=text, num_words=200)
+            print("Generating text with trigrams")
+            three_gen = three.generate_stylized_text(text_seed=text, num_words=200)
             for genre in gen_genres:
                 print(f"Genre: {genre}, Input Text: {text}")
-                generate(args, model, text, genre, tokenizer)
+                g = genre.replace("<", "").replace(">", "")
+                generate(args, model, text, genre, tokenizer, two_gen[g], three_gen[g])
         # result = dict((k + "_{}".format(global_step), v) for k, v in result.items())
         # results.update(result)

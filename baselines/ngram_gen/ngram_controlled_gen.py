@@ -11,7 +11,7 @@ from nltk.lm.preprocessing import padded_everygram_pipeline
 import pandas as pd
 from time import time
 
-# from tqdm import tqdm # tried to use this but don't know how
+from tqdm import tqdm
 
 try:  # Use the default NLTK tokenizer.
     from nltk import word_tokenize, sent_tokenize
@@ -110,9 +110,10 @@ class ScriptGram(object):
         self.all_genres = gen.iloc[:, 0].tolist()
         # print(self.all_genres)
         # get model files
-        for genre in self.all_genres:
+        print("Loading model", self.n, "gram")
+        for genre in tqdm(self.all_genres):
             modfile = self.model_file_name(genre)
-            print("loading...", modfile)
+            # print("loading...", modfile)
             with open(modfile, 'rb') as fin:
                 self.models[genre] = pickle.load(fin)
 
@@ -152,15 +153,19 @@ class ScriptGram(object):
             gen_lst = self.all_genres
         if isinstance(genre, str):
             gen_lst.append(genre)
+        if isinstance(genre, list):
+            gen_lst += genre
 
         columns = ["genre", "text_seed", "generation"]
         outputs = []
-        for genre in gen_lst:
+        out_dict = {}
+        for genre in tqdm(gen_lst):
             assert genre in self.all_genres, "inappropriate genre entered (confirm with genre_stats.csv for spelling)"
             txt = self._generate(genre, text_seed=text_seed, num_words=num_words, random_seed=random_seed)
-            print("------", genre, "------")
-            print(txt)
+            # print("------", genre, "------")
+            # print(txt)
             outputs.append([genre, text_seed, txt])
+            out_dict[genre] = txt
         if outFile is None:
             outFile = self.generations_file_name()
         outframe = pd.DataFrame(outputs, columns=columns)
@@ -168,6 +173,7 @@ class ScriptGram(object):
             outframe.to_csv(outFile, mode='a', index=False, header=False)
         else:
             outframe.to_csv(outFile, mode='w', index=False)
+        return out_dict
 
     def generations_file_name(self, lm=None, n=None):
         """All generations will be in one csv."""
@@ -356,24 +362,29 @@ class ScriptGram(object):
 import sys
 
 if __name__ == "__main__":
-    n = int(sys.argv[1])
-    """
-    ltg = load_data --> train_models --> generate_text
-    lg = load_models --> generate_text
-    """
-    sg = ScriptGram(n = n)
-    action = sys.argv[2]
-    if action == 'ltg':
-        sg.load_data()
-        sg.train_models()
-        sg.generate_stylized_text(text_seed="The man went to the park", num_words=400)
-    elif action == 'lg':
-        sg.load_models()
-        sg.generate_stylized_text(text_seed="The man went to the park", num_words=400)
-    else:
-        print("invalid <action> argument:", action)
-        exit()
+    # n = int(sys.argv[1])
+    # """
+    # ltg = load_data --> train_models --> generate_text
+    # lg = load_models --> generate_text
+    # """
+    # sg = ScriptGram(n = n)
+    # action = sys.argv[2]
+    # if action == 'ltg':
+    #     sg.load_data()
+    #     sg.train_models()
+    #     sg.generate_stylized_text(text_seed="The man went to the park", num_words=400)
+    # elif action == 'lg':
+    #     sg.load_models()
+    #     sg.generate_stylized_text(text_seed="The man went to the park", num_words=400)
+    # else:
+    #     print("invalid <action> argument:", action)
+    #     exit()
 
+    grams = [2, 3]
+    df = pd.read_csv("data/output.csv")
+
+    for n in grams:
+        pass
 
 
 

@@ -19,3 +19,4 @@ word2vec.model
 baselines/ngram_gen/genre_vocab_dict.pickle
 baselines/ngram_gen/run_downloader_api.ipynb
 src/pip-delete-this-directory.txt
+.vscode/.ropeproject/config.py

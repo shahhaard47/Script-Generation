@@ -11,7 +11,10 @@ import os
 from time import time
 import numpy as np
 import operator
-
+import torch
+import pandas as pd
+import csv
+from tqdm import tqdm
 
 this_file = os.path.dirname(os.path.abspath(__file__))
 keys = ['<Comedy>', '<Action>', '<Adventure>', '<Crime>', '<Drama>', '<Fantasy>', '<Horror>', '<Music>', '<Romance>', 'Sci-Fi', '<Thriller>']
@@ -20,7 +23,7 @@ referenceWords = {
     "Comedy": 'humor,clowning,funny,laughter,joke,sarcasm,goofy,playful,hilarious,silly'.split(','),
     "Adventure": 'risk,hazard,chance,journey,voyage,venture,epic,exploring,superhero,adventurers'.split(','),
     "Crime": 'theft,murder,felony,rape,fraud,victim,police,corrupt,kill,violence'.split(','),
-    "Drama": 'narrative,emotional,depth,relationship,issues,feelings,grief,culture,tension,love,theatrical'.split(','),
+    "Drama": 'narrative,emotional,depth,relationship,issues,feelings,grief,culture,tension,theatrical'.split(','),
     "Fantasy": 'fancy,supernatural,dream,imagine,vision,delusion,fairyland,love,epic,imaginary'.split(','),
     "Horror": 'fancy,supernatural,dream,imagine,vision,delusion,fairyland,love,epic,imaginary'.split(','),
     "Music": 'soundtrack,studio,singer,superstar,star,theater,acoustic,composer,copyrighted,celebrity'.split(','),
@@ -28,6 +31,7 @@ referenceWords = {
     "Sci-Fi" : 'future,dystopian,extraterrestrial,psychology,supernatural,scientific,robot,technology,universe,time'.split(','),
     "Thriller": 'suspense,epic,satire,spoof,gangster,adrenalin,excitement,goosebumps,nerve,rivetting'.split(',')
 }
+
 
 class Eval(object):
     def __init__(self):
@@ -45,44 +49,16 @@ class Eval(object):
         self.genre = [g for g in referenceWords]
         # (N, T, D) ==> genre, words in genre, dimensin of embedding
 
-    # def embedSequence(self):
-    #     pass
-
-class Word2VecEval(Eval):
-    def __init__(self):
-        """Word2Vec model."""
-        corpus = "word2vec-google-news-300"
-        print("Initializing", corpus, "...")
-        tic = time()
-        self.model = api.load(corpus)
-        self.wordVector = self.model.wv
-        print("loaded model; time :", time() - tic) 
-        Eval.__init__(self)
-
     def embedToken(self, word):
-        """Returns ndarray of shape (D,)"""
-        emb = None
-        try:
-            emb = self.model[word]
-        except:
-            pass
-        return emb
+        """Different for Word2Vec and GPT2."""
+        pass
+
+    def tokenizeSequence(self, sequence):
+        """Different for Word2Vec and GPT2."""
+        pass
 
     def embedSequence(self, sequence):
-        """
-        if sequence is str : then tokenize using gensim.util.simple_preprocess
-        otherwise : assume sequence is list(str) and embed each str in list
-        Returns 2D numpy array of (T, D) where T is number of tokens and D is dimension
-        """
-        # tokenize
-        if isinstance(sequence, str):
-            tokens = self.tokenizeSequence(sequence)
-        else:
-            # assume its a list if not a str
-            tokens = sequence
-        # call embed on in loop
-        embeds = np.array([self.embedToken(t) for t in tokens])
-        return embeds
+        pass
 
     def sumTokenEmbeds(self, wordList):
         """
@@ -117,6 +93,101 @@ class Word2VecEval(Eval):
             item2 = self.embedToken(item2)
         return self.cosine(item1, item2)
 
+    def embedSequence(self, sequence):
+        """
+        if sequence is str : then tokenize using gensim.util.simple_preprocess
+        otherwise : assume sequence is list(str) and embed each str in list
+        Returns 2D numpy array of (T, D) where T is number of tokens and D is dimension
+        """
+        # tokenize
+        if isinstance(sequence, str):
+            tokens = self.tokenizeSequence(sequence)
+        else:
+            # assume its a list if not a str
+            tokens = sequence
+        # call embed on in loop
+        embeds = np.array([self.embedToken(t) for t in tokens])
+        return embeds
+
+    def distanceToReferenceWords(self, sequence, genre=None, useSum=True):
+        """Gets distance between mean/sum of each category and mean/sum of sequence.
+        if genre is None: output list of (genre, prob) with genre of lowest distance first
+        if genre is str: return (genre, prob) tuple
+
+        useSum = True because sum makes more sense for combined meaning of words in sequence
+        """
+        if isinstance(sequence, str):
+            # tokenize sequence
+            sequence = self.tokenizeSequence(sequence)
+        dists = []
+        if not useSum:
+            # compare means
+            inp_seq = self.averageTokenEmbeds(sequence)
+            refWords = self.refWordsMeans
+            # print(inp_seq.shape)
+            # print(self.refWordsMeans.shape)
+        else:
+            # compare sums
+            inp_seq = self.sumTokenEmbeds(sequence)
+            # refWords = self.refWordsSums
+            refWords = self.refWordsMeans # Just to test (MIXED) sum inp sentence but average seeds
+            # print(inp_seq.shape)
+            # print(self.refWordsSums.shape)
+        if genre is not None:
+            try:
+                idx = self.genre.index(genre)
+            except ValueError:
+                print("genre", genre, "key not among reference words")
+                return None
+            return (genre, self.getDist(inp_seq, refWords[idx]))
+        # if no genre is passed
+        for i, genre in enumerate(self.genre):
+            dists.append((genre, self.getDist(inp_seq, refWords[i])))
+            # print(dists[-1])
+        dists.sort(key=operator.itemgetter(1))
+        # for p in dists:
+        #     print(p)
+        return dists
+
+class GPT2EmbeddingsEval(Eval):
+    def __init__(self):
+        """GPT2 Embeddings Eval."""
+        self.model, self.tokenizer = get_gpt_tokenizer()
+        self.embeddings = self.model.transformer.wte.weight
+        Eval.__init__(self)
+
+    def embedToken(self, word):
+        """Different for Word2Vec and GPT2."""
+        tmp = torch.mean(self.embeddings[self.tokenizer.encode(word), :], 0).unsqueeze(0).data.cpu().numpy()[0]
+        return tmp
+
+    def tokenizeSequence(self, sequence):
+        """Different for Word2Vec and GPT2."""
+        tokens = self.tokenizer.tokenize(sequence)
+        return tokens
+
+
+class Word2VecEval(Eval):
+    def __init__(self):
+        """Word2Vec model."""
+        corpus = "word2vec-google-news-300"
+        print("Initializing", corpus, "...")
+        tic = time()
+        self.model = api.load(corpus)
+        self.wordVector = self.model.wv
+        print("loaded model; time :", time() - tic) 
+        Eval.__init__(self)
+
+    def embedToken(self, word):
+        """Returns ndarray of shape (D,)"""
+        emb = None
+        try:
+            emb = self.model[word]
+        except:
+            pass
+        return emb
+
+
     def _filter_tokens_not_in_model(self, tokens):
         """check if each token appears in w2v vocab."""
         new_toks = []
@@ -130,46 +201,49 @@ class Word2VecEval(Eval):
         toks = simple_preprocess(sequence)
         return self._filter_tokens_not_in_model(toks)
 
-    def distanceToReferenceWords(self, sequence, genre=None, useSum=False):
-        """Gets distance between mean/sum of each category and mean/sum of sequence.
-        if genre is None: output list of (genre, prob) with genre of lowest distance first
-        if genre is str: return (genre, prob) tuple
-        """
-        if isinstance(sequence, str):
-            # tokenize sequence
-            sequence = self.tokenizeSequence(sequence)
-        probs = []
-        if not useSum: 
-            # compare means
-            inp_seq = self.averageTokenEmbeds(sequence)
-            refWords = self.refWordsMeans
-            # print(inp_seq.shape)
-            # print(self.refWordsMeans.shape)
-        else:
-            # compare sums
-            inp_seq = self.sumTokenEmbeds(sequence)
-            refWords = self.refWordsSums
-            # print(inp_seq.shape)
-            # print(self.refWordsSums.shape)
-        if genre is not None:
-            try:
-                idx = self.genre.index(genre)
-            except ValueError:
-                print("genre", genre, "key not among reference words")
-                return None
-            return (genre, self.getDist(inp_seq, refWords[idx]))
-        # if no genre is passed
-        for i, genre in enumerate(self.genre):
-            probs.append((genre, self.getDist(inp_seq, refWords[i])))
-            # print(probs[-1])
-        probs.sort(key = operator.itemgetter(1))
-        # for p in probs:
-        #     print(p)
-        return probs
+    
 
+def get_dist_closest(model, text, genre):
+    dists = model.distanceToReferenceWords(text, useSum=True) 
+    closest = "yes" if genre == dists[0][0] else dists[0][0]
+    for d in dists:
+        if genre == d[0]:
+            return str(d[1]), closest
+    # should never get here
+    print("Something went wrong, couldn't find genre")
+    exit()
 
-
+gpt = GPT2EmbeddingsEval()
 wv = Word2VecEval()
+
+# Evaluate data/output.csv
+df = pd.read_csv('data/output.csv')
+
+# 'data/seed_text.csv'
+# seed_df = pd.DataFrame(referenceWords)
+# seed_df.to_csv('data/seed_text.csv', index=False)
+
+# *_closest_label = "yes" if same as genre, else correct label
+
+fname = "data/output_evals_2.csv"
+with open(fname, "w") as f:
+    csv_out = csv.writer(f)
+    csv_out.writerow(('genre', 'seed_text', 'w2v_lexical_style_GPT', 'w2v_closest_label_GPT', 'w2v_lexical_style_bigram', 'w2v_closest_label_bi', 'w2v_lexical_style_trigram', 'w2v_closest_label_tri', 'gpt_lexical_style_GPT', 'gpt_closest_label_GPT', 'gpt_lexical_style_bigram', 'gpt_closest_label_bi', 'gpt_lexical_style_trigram', 'gpt_closest_label_tri'))
+
+    for i in tqdm(range(len(df))):
+        genre = df.iloc[i, 0].replace("<", "").replace(">", "") #
+        seed_text = df.iloc[i, 1] #
+        gpt_gen = df.iloc[i, 2]
+        bi = df.iloc[i, 3]
+        tri = df.iloc[i, 4]
+        w2v_gpt, w2v_c_gpt = get_dist_closest(wv, gpt_gen, genre) #
+        w2v_bi, w2v_c_bi = get_dist_closest(wv, bi, genre) #
+        w2v_tri, w2v_c_tri = get_dist_closest(wv, tri, genre) #
+        gpt_gpt, gpt_c_gpt = get_dist_closest(gpt, gpt_gen, genre) #
+        gpt_bi, gpt_c_bi = get_dist_closest(gpt, bi, genre) #
+        gpt_tri, gpt_c_tri = get_dist_closest(gpt, tri, genre) #
+        csv_out.writerow((genre, seed_text, w2v_gpt, w2v_c_gpt, w2v_bi, w2v_c_bi, w2v_tri, w2v_c_tri, gpt_gpt, gpt_c_gpt, gpt_bi, gpt_c_bi, gpt_tri, gpt_c_tri))
+
 
 # model = Word2Vec(model)
 
@@ -201,19 +275,5 @@ fantasy = ("Fantasy", """and the KNOCKS on the
 ground, then turns and runs toward the open crypt. INT. COLD WILLOW'S STUDY - NIGHT
 In the background, the door to the small rooms of the
 Old Brewery occupies the ancient temple. He walks through the doorway and out into the corridor.""")
-
-# print(tst_gen)
-
-# model, tokenizer = get_gpt_tokenizer()
-
-# tokens = tokenizer.encode(tst_gen[1])
-# # print(tokens)
-
-# for t in tokens:
-#     # print(t, tokenizer.decode(t))
-#     pass
-
-# for word in referenceWords['Action']:
-#     print(model[word])
 
 
