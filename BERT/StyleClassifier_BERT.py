@@ -94,12 +94,12 @@ def train_fast_bert():
                             multi_label=True,
                             logging_steps=50)
 
-    learner.fit(epochs=3,
-                lr=6e-5,
+    learner.fit(epochs=5,
+                lr=6e-4,
                 validate=True, 	# Evaluate the model after each epoch
                 schedule_type="warmup_cosine",
                 optimizer_type="lamb")
-    learner.save_model()
+    # learner.save_model() # no need modified library file to save after every epoch
 
 # simple inference right after training
 # texts = ['I really love the Netflix original movies',

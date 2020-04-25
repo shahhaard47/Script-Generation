@@ -38,9 +38,10 @@ file_loc = os.path.dirname(os.path.abspath(__file__))
 HOME_dir = os.path.dirname(os.path.dirname(file_loc))
 os.chdir(HOME_dir)
 
+MODELS = os.path.join(HOME_dir, 'models')
 DATA_DIR = os.path.join(HOME_dir, 'data')          # REQ
-MODEL_DIR = os.path.join(HOME_dir, 'ngram_models') # REQ
-GEN_DIR = os.path.join(HOME_dir, 'ngram_generations')
+MODEL_DIR = os.path.join(MODELS, 'ngram_models') # REQ
+GEN_DIR = os.path.join(DATA_DIR, 'ngram_generations')
 
 # Data location
 SCRIPTS_ALL = os.path.join(DATA_DIR, 'genres.csv') # REQ: ONLY USING THIS
@@ -49,10 +50,9 @@ SCRIPTS_TEST = os.path.join(DATA_DIR, 'test.csv')
 
 exists = lambda x: os.path.exists(x)
 
-
 # Load raw csv data
-for i in (SCRIPTS_ALL, SCRIPTS_TRAIN, SCRIPTS_TEST):
-    assert(exists(i)), "Couldn't find data"
+# for i in (SCRIPTS_ALL, SCRIPTS_TRAIN, SCRIPTS_TEST):
+#     assert(exists(i)), "Couldn't find data"
 
 # stats
 get_stats = lambda table: table.iloc[:, 4:].sum(axis=0)
@@ -358,57 +358,28 @@ class ScriptGram(object):
         return tokens
 
 
-
 import sys
 
 if __name__ == "__main__":
-    # n = int(sys.argv[1])
-    # """
-    # ltg = load_data --> train_models --> generate_text
-    # lg = load_models --> generate_text
-    # """
-    # sg = ScriptGram(n = n)
-    # action = sys.argv[2]
-    # if action == 'ltg':
-    #     sg.load_data()
-    #     sg.train_models()
-    #     sg.generate_stylized_text(text_seed="The man went to the park", num_words=400)
-    # elif action == 'lg':
-    #     sg.load_models()
-    #     sg.generate_stylized_text(text_seed="The man went to the park", num_words=400)
-    # else:
-    #     print("invalid <action> argument:", action)
-    #     exit()
-
-    grams = [2, 3]
-    df = pd.read_csv("data/output.csv")
-
-    for n in grams:
-        pass
+    n = int(sys.argv[1])
+    """
+    ltg = load_data --> train_models --> generate_text
+    lg = load_models --> generate_text
+    """
+    sg = ScriptGram(n = n)
+    action = sys.argv[2]
+    if action == 'ltg':
+        sg.load_data()
+        sg.train_models()
+        sg.generate_stylized_text(text_seed="The man went to the park", num_words=400)
+    elif action == 'lg':
+        sg.load_models()
+        sg.generate_stylized_text(text_seed="The man went to the park", num_words=400)
+    else:
+        print("invalid <action> argument:", action)
+        exit()
 
 
 
 
 
-
-"""
-# removing mult col names appropriately
-actThril = df.loc[df['Action.Thriller'] == 1]
-actThril = actThril.index.values[0]
-# print(df.iloc[actThril])
-# df.iloc[actThril]['Action'] = 1
-df.set_value(actThril, 'Action', 1)
-df.set_value(actThril, 'Thriller', 1)
-df.drop('Action.Thriller', axis=1, inplace=True)
-# print(df.iloc[actThril])
-
-horMys = df.loc[df['Horror.Mystery'] == 1]
-horMys = horMys.index.values[0]
-# print(df.iloc[horMys])
-df.set_value(horMys, 'Horror', 1)
-df.set_value(horMys, 'Mystery', 1)
-# print(df.iloc[horMys])
-df.drop('Horror.Mystery', axis=1, inplace=True)
-
-df.to_csv('data/test_new.csv',index=False)
-"""

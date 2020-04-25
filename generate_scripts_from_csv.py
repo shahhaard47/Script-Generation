@@ -1,3 +1,4 @@
+import pandas as pd
 from helpers.sample import sample_sequence
 
 import os
@@ -43,7 +44,7 @@ ALL_MODELS = sum(
     (tuple(conf.pretrained_config_archive_map.keys()) for conf in (BertConfig, XLNetConfig, RobertaConfig, GPT2Config)), ()
 )
 
-def generate(args, model, text, genres, tokenizer, gen2, gen3):
+def generate(args, model, text, genres, tokenizer, bart_gen, gen2, gen3):
 
     if args.batch_size == -1:
         args.batch_size = 1
@@ -86,7 +87,7 @@ def generate(args, model, text, genres, tokenizer, gen2, gen3):
             # print(output_text)
         with open('./data/output.csv',"a") as out:
             csv_out = csv.writer(out)
-            csv_out.writerow((genres, text, output_text, gen2, gen3))
+            csv_out.writerow((genres, text, output_text, bart_gen, gen2, gen3))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -145,16 +146,33 @@ if __name__ == '__main__':
                 inputs.append(row[0])
     # print(inputs)
     # klsjfsd
-    gen_genres = ['<Comedy>', '<Action>', '<Adventure>', '<Crime>', '<Drama>',
-                  '<Fantasy>', '<Horror>', '<Music>', '<Romance>', '<Sci-Fi>', '<Thriller>']
+    # gen_genres = ['<Comedy>', '<Action>', '<Adventure>', '<Crime>', '<Drama>', '<Fantasy>', '<Horror>', '<Music>', '<Romance>', '<Sci-Fi>', '<Thriller>']
+    gen_genres = ['<Action>', '<Comedy>', '<Thriller>',
+                  '<Horror>', '<Romance>', '<Sci-Fi>', '<Fantasy>']
+    # new just these 7
     checkpoints = [args.checkpoint]
     print(f"Generating data for the following checkpoints: {checkpoints}")
 
+    # # combining all data_scripts
+    df_bart = pd.read_csv('data/output_gen_BART_transpose.csv') 
+    # df_gpt = pd.read_csv('data/output_gpt_350000.csv')
+    # df_bi_tri = pd.read_csv('data/output_gens_gpt_60000.csv')
 
-    with open('./data/output.csv', "w") as out:
-        csv_out = csv.writer(out)
-        csv_out.writerow(('Genre', 'Seed_Text', 'Generations_GPT2', '2gram_gen', '3gram_gen'))
+    # with open('./data/output.csv', "w") as out:
+    #     csv_out = csv.writer(out)
+    #     csv_out.writerow(('Genre', 'Seed_Text', 'Generations_GPT2', 'BART_gen', '2gram_gen', '3gram_gen'))
     
+    #     for i, text in enumerate(inputs):
+    #         for genre in gen_genres:
+    #             bart_gen = df_bart[genre].iloc[i]
+    #             gpt_gen = df_gpt.loc[(df_gpt['Genre'] == genre) & (df_gpt['Seed Text'] == text)]
+    #             gpt_gen = gpt_gen.iloc[0, 2]
+    #             tmp = df_bi_tri.loc[(df_bi_tri['Genre'] == genre) & (df_bi_tri['Seed_Text'] == text)]
+    #             bi_gen = tmp.iloc[0, 3]
+    #             tri_gen = tmp.iloc[0, 4]
+    #             csv_out.writerow((genre, text, gpt_gen, bart_gen, bi_gen, tri_gen))
+    
+    # exit()
 
 
     for checkpoint in checkpoints:
@@ -169,15 +187,16 @@ if __name__ == '__main__':
         three = ScriptGram(n=3)
         three.load_models()
 
-        for text in inputs:
+        for i, text in enumerate(inputs):
             print("Seed text:", text)
             print("Generating text with bigrams")
             two_gen = two.generate_stylized_text(text_seed=text, num_words=200)
             print("Generating text with trigrams")
             three_gen = three.generate_stylized_text(text_seed=text, num_words=200)
             for genre in gen_genres:
+                bart_gen = df_bart[genre].iloc[i]
                 print(f"Genre: {genre}, Input Text: {text}")
                 g = genre.replace("<", "").replace(">", "")
-                generate(args, model, text, genre, tokenizer, two_gen[g], three_gen[g])
+                generate(args, model, text, genre, tokenizer, bart_gen, two_gen[g], three_gen[g])
         # result = dict((k + "_{}".format(global_step), v) for k, v in result.items())
         # results.update(result)

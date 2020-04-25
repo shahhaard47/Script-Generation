@@ -2,6 +2,11 @@
 Use `ngram_controlled_gen` to create tfidf across all genres.
 
 Use these for clustering later somehow
+
+HOME = project home
+NEED FILES (hardcoded):
+- HOME/ngrams_generations/tfidf_all_genres.csv
+
 """
 
 
@@ -83,7 +88,7 @@ def create_tfidf_embeddings():
     # print("genres", sg.all_genres)
     df = pd.DataFrame(columns=["token"]+sg.all_genres)
     global_vocab = set()    
-    file_name = os.path.join(GEN_DIR, "tfidf_all_genres0.csv")
+    file_name = os.path.join(GEN_DIR, "tfidf_all_genres.csv")
 
     # if False:
     #     par_df = tfidf_async(sg)
@@ -150,6 +155,7 @@ def extractEmbeddings(df, tokenizer, model, thresh=0):
     words, _ = extractFromDF(df)
     new_words = []
     embeds = []
+    print("Extracting GPT embeddings")
     for word in tqdm(words):
         try:
             tmp = torch.mean(embeddings[tokenizer.encode(word), :],0).unsqueeze(0).data.cpu().tolist()[0]
@@ -306,7 +312,7 @@ def tSNE_train_GPT(tokens, pickleFileName="gpt_embedings_tsne.pickle",
     from sklearn.manifold import TSNE
     tsne_model = TSNE(perplexity=5, n_components=2,
                         init='pca', n_iter=2500, random_state=23, 
-                        n_jobs=16, n_iter_without_progress=50)
+                        n_jobs=14, verbose=3)
 
     if cont_saved:
         print('loading saved tsne values from', pickleFileName)
@@ -332,7 +338,7 @@ def tSNE_train_GPT(tokens, pickleFileName="gpt_embedings_tsne.pickle",
 
 def visualizeGPT2Embeddings(df, tsne_fname="gpt_embedings_tsne.pickle", cont_saved=False, vis_fname="gpt_tSNE_plot.png"):
     # 1. Get vocab
-    file_name = os.path.join(GEN_DIR, "tfidf_all_genres1.csv")
+    file_name = os.path.join(GEN_DIR, "tfidf_all_genres.csv")
     df = pd.read_csv(file_name, index_col=False)
 
     # 2. Use GPT tokenizer to encode 
@@ -343,14 +349,14 @@ def visualizeGPT2Embeddings(df, tsne_fname="gpt_embedings_tsne.pickle", cont_sav
 
     # 4. Train tSNE model
     numcols = len(genres)
-    new_values = tSNE_train_GPT(embeds + gembeds)
+    new_values = tSNE_train_GPT(embeds + gembeds, cont_saved=True)
     word_vals = new_values[:-numcols]
     genre_vals = new_values[-numcols:]
 
     # 5. plot them in similar ways (to tfidf)
             # maybe use tf-idf colorings on embeddings
     # get colors 
-    colors, cdict = getColors(df, cols=cols, thresh=thresh)
+    colors, cdict = getColors(df)
     colorNames = [cdict[c] for c in range(len(cdict))]
 
     x = []
@@ -365,7 +371,6 @@ def visualizeGPT2Embeddings(df, tsne_fname="gpt_embedings_tsne.pickle", cont_sav
     plt.figure(figsize=(16, 16))
 
     # scatter = plt.scatter(x, y, c=colors, cmap=plt.cm.get_cmap("jet", len(colorNames)), marker='.')
-    plt.scatter(x, y, c=colors, cmap=plt.cm.get_cmap("jet", len(colorNames)), marker='.')
     try: 
         print("annotating genre lables")
         for i in tqdm(range(len(genre_vals))):
@@ -379,7 +384,10 @@ def visualizeGPT2Embeddings(df, tsne_fname="gpt_embedings_tsne.pickle", cont_sav
                             va='bottom')
     except :
         print("couldn't work labeling this")
+    plt.scatter(x, y, c=colors, cmap=plt.cm.get_cmap(
+        "jet", len(colorNames)), marker='.')
     bar = plt.colorbar(ticks=range(len(colorNames)))
+    print(colorNames)
     bar.set_ticklabels(colorNames)
     plt.title("tSNE plot for GPT embeddings (colored using tfidf argmax)")
     plt.grid(True)
@@ -391,7 +399,7 @@ def visualizeGPT2Embeddings(df, tsne_fname="gpt_embedings_tsne.pickle", cont_sav
 def scriptsVocabByGenre(tfidf_file=None):
     """Get dictionary of words in genre (using tfidf vectors)."""
     if tfidf_file is None:
-        file_name = os.path.join(GEN_DIR, "tfidf_all_genres1.csv")
+        file_name = os.path.join(GEN_DIR, "tfidf_all_genres.csv")
     else:
         file_name = tfidf_file
     df = pd.read_csv(file_name, index_col = False)
@@ -418,15 +426,15 @@ def scriptsVocabByGenre(tfidf_file=None):
     return sdict
 
 if __name__ == "__main__":
+    print("reading csv")
+    file_name = os.path.join(GEN_DIR, "tfidf_all_genres.csv")
+    df = pd.read_csv(file_name, index_col=False)
     visualizeGPT2Embeddings(df)
 
     # scriptsVocabByGenre()
 
 
     # create_tfidf_embeddings()
-    # print("reading csv")
-    # file_name = os.path.join(GEN_DIR, "tfidf_all_genres1.csv")
-    # df = pd.read_csv(file_name, index_col=False)
 
     # Visualizing GPT embeddings
     # Visualizing tfidf embeddings
