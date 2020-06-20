@@ -1,5 +1,8 @@
 ## **Pytorch-Genre-Based-Script-Generation**
 
+**Abstract**: *This project deals with genre-based controllable movie script generation. We fine-tune two language models - GPT-2 and BART on the IMSDB movie script dataset using special genre tags to delineate the styles of the script. By learning the embeddings for these genre tokens we generate novel scripts for unique combinations of genres during inference by using these genre tokens as the input. To evaluate our model we fine-tune a BERT classifier, to identify the most likely genre(s) for a given script. We also explore other unsupervised methods, inspired from evaluating style transfer techniques, to verify whether our controllable model is actually generating scripts within the specified genre. Qualitatively our proposed method proved to be better than our baselines, even though quantitative results didn’t completely support this. However the evaluation techniques we propose could be beneficial for future avenues of research*
+
+Read the full report: [Final_Report_NLP.pdf](Final_Report_NLP.pdf)
 
 ## Fine-Tune on Movie Script dataset
 
