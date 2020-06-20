@@ -4,6 +4,10 @@
 
 Read the full report: [Final_Report_NLP.pdf](Final_Report_NLP.pdf)
 
+Example of scripts generated with the prompt "<Genre> He hits a button" (with different *Genres*)
+    
+![](ScriptResults.png)
+
 ## Fine-Tune on Movie Script dataset
 
 ```
