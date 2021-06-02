@@ -114,7 +114,7 @@ tqdm==4.43.0
 traitlets==4.3.3
 # -e git+https://github.gatech.edu/asilva9/transformed_bias.git@ad97824d0bf5f5f81dd20f2ce42610a0dd02f167#egg=transformed_bias
 transformers==2.5.1 # installed newest
-urllib3==1.25.8
+urllib3==1.26.5
 wasabi==0.6.0
 wcwidth==0.1.8
 webencodings==0.5.1
