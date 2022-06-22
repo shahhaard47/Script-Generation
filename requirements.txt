@@ -57,7 +57,7 @@ nbformat==5.0.4
 nltk==3.4.5
 notebook==6.0.3
 numba==0.48.0
-numpy==1.18.1
+numpy==1.22.0
 olefile==0.46
 pandas==1.0.3
 pandocfilters==1.4.2
